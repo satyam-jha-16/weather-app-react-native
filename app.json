@@ -16,6 +16,17 @@
       ]
     ],
     "name": "weather",
-    "slug": "weather"
+    "slug": "weather",
+    "extra": {
+      "router": {
+        "origin": "https://n"
+      },
+      "eas": {
+        "projectId": "b1f72e01-c6a7-4c13-bbb6-857dd3951155"
+      }
+    },
+    "android": {
+      "package": "com.alexinwano.weather"
+    }
   }
 }

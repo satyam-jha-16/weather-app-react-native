@@ -1,95 +1,273 @@
-import { Link } from "expo-router";
-import React from "react";
-import { Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { fetchLocations, fetchWeatherData } from "@/api";
+import { weatherImages } from "@/constants/constant";
+import { StatusBar } from "expo-status-bar";
+import { debounce } from "lodash";
+import React, { useCallback } from "react";
+import {
+  Image,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  CalendarDaysIcon,
+  MagnifyingGlassIcon,
+  MapPinIcon,
+} from "react-native-heroicons/outline";
+interface WeatherCondition {
+  code: number;
+  icon: string;
+  text: string;
+}
 
+interface WeatherCurrent {
+  cloud: number;
+  condition: WeatherCondition;
+  dewpoint_c: number;
+  dewpoint_f: number;
+  feelslike_c: number;
+  feelslike_f: number;
+  gust_kph: number;
+  gust_mph: number;
+  heatindex_c: number;
+  heatindex_f: number;
+  humidity: number;
+  is_day: number;
+  last_updated: string;
+  last_updated_epoch: number;
+  precip_in: number;
+  precip_mm: number;
+  pressure_in: number;
+  pressure_mb: number;
+  temp_c: number;
+  temp_f: number;
+  uv: number;
+  vis_km: number;
+  vis_miles: number;
+  wind_degree: number;
+  wind_dir: string;
+  wind_kph: number;
+  wind_mph: number;
+  windchill_c: number;
+  windchill_f: number;
+}
+interface TGeo {
+  country: string;
+  lat: number;
+  localtime: string;
+  localtime_epoch: number;
+  lon: number;
+  name: string;
+  region: string;
+  tz_id: string;
+}
+interface TForecast {}
 export default function Page() {
-  return (
-    <View className="flex flex-1">
-      <Header />
-      <Content />
-      <Footer />
-    </View>
-  );
-}
+  const [showSearch, setShowSearch] = React.useState(false);
+  const [locations, setLocations] = React.useState([]);
+  const [temp, setTemp] = React.useState<WeatherCurrent | null>();
+  const [fore, setFore] = React.useState([]);
+  const [geo, setGeo] = React.useState<TGeo | null>();
+  const handleLocation = (loc) => {
+    // console.log(loc);
+    setLocations([]);
+    setShowSearch(false);
+    fetchWeatherData({
+      cityName: loc.name,
+      days: 7,
+    }).then((data) => {
+      const { current, location, forecast } = data;
+      // setForecast(forecast);
 
-function Content() {
+      console.log("forecast : : ", forecast.forecastday);
+      console.log("location :  : : : : : : : : :  :: : : : : :  :: ");
+
+      // console.log("data is incoming  : : ", data);
+      setFore(forecast.forecastday);
+
+      // console.log(current);
+      setTemp(current);
+      // console.log("location is incoming  : : ");
+      setGeo(location);
+      // console.log(location);
+    });
+  };
+
+  const handleSearch = (value) => {
+    // console.log(value);
+    // fetch locations endpoint
+    if (value.length > 2) {
+      fetchLocations({ cityName: value }).then((data) => {
+        setLocations(data);
+      });
+    }
+  };
+
+  const handleSearchDebounce = useCallback(debounce(handleSearch, 1200), []);
+
   return (
-    <View className="flex-1">
-      <View className="py-12 md:py-24 lg:py-32 xl:py-48">
-        <View className="px-4 md:px-6">
-          <View className="flex flex-col items-center gap-4 text-center">
-            <Text
-              role="heading"
-              className="text-3xl text-center native:text-5xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl"
+    <View className=" flex-1  relative ">
+      <StatusBar style="light" />
+      <Image
+        blurRadius={70}
+        source={require("../../assets/images/bg.png")}
+        className="absolute h-full w-full"
+      />
+      <SafeAreaView className="flex flex-1 pt-16">
+        <View style={{ height: "7%" }} className="mx-4 relative z-50">
+          <View
+            className="flex-row justify-end items-center rounded-full p-1"
+            style={{
+              backgroundColor: showSearch
+                ? "rgba(255,255,255,0.2)"
+                : "transparent",
+            }}
+          >
+            {showSearch ? (
+              <TextInput
+                onChangeText={handleSearchDebounce}
+                placeholder="Search city"
+                placeholderTextColor={"white"}
+                className="pl-6 h-10 flex-1 text-base text-white"
+              />
+            ) : null}
+
+            <TouchableOpacity
+              onPress={() => setShowSearch(!showSearch)}
+              style={{ backgroundColor: "rgba(255,255,255,0.3)" }}
+              className="rounded-full bg-white p-3 m-1"
             >
-              Welcome to Project ACME
-            </Text>
-            <Text className="mx-auto max-w-[700px] text-lg text-center text-gray-500 md:text-xl dark:text-gray-400">
-              Discover and collaborate on amce. Explore our services now.
-            </Text>
-
-            <View className="gap-4">
-              <Link
-                suppressHighlighting
-                className="flex h-9 items-center justify-center overflow-hidden rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-gray-50 web:shadow ios:shadow transition-colors hover:bg-gray-900/90 active:bg-gray-400/90 web:focus-visible:outline-none web:focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
-                href="/"
-              >
-                Explore
-              </Link>
-            </View>
+              <MagnifyingGlassIcon size={25} color={"white"} />
+            </TouchableOpacity>
           </View>
+          {locations.length > 0 && showSearch ? (
+            <View className="absolute w-full bg-gray-300 rounded-2xl top-16">
+              {locations.map((loc, i) => {
+                let showBorder = i + 1 != locations.length;
+                let borderClass = showBorder
+                  ? "border-b-2 border-b-gray-400"
+                  : "";
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    className={
+                      "flex flex-row items-center border-0 p-3 mb-1 " +
+                      borderClass
+                    }
+                    onPress={() => handleLocation(loc)}
+                  >
+                    <MapPinIcon color={"black"} />
+                    <Text className="text-black text-lg ml-21">
+                      {loc?.name as string}, {loc?.country}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
         </View>
-      </View>
-    </View>
-  );
-}
 
-function Header() {
-  const { top } = useSafeAreaInsets();
-  return (
-    <View style={{ paddingTop: top }}>
-      <View className="px-4 lg:px-6 h-14 flex items-center flex-row justify-between ">
-        <Link className="font-bold flex-1 items-center justify-center" href="/">
-          ACME
-        </Link>
-        <View className="flex flex-row gap-4 sm:gap-6">
-          <Link
-            className="text-md font-medium hover:underline web:underline-offset-4"
-            href="/"
-          >
-            About
-          </Link>
-          <Link
-            className="text-md font-medium hover:underline web:underline-offset-4"
-            href="/"
-          >
-            Product
-          </Link>
-          <Link
-            className="text-md font-medium hover:underline web:underline-offset-4"
-            href="/"
-          >
-            Pricing
-          </Link>
+        {/* FORECAST WEATHER  */}
+        <View className="mx-4 flex justify-around flex-1 mb-2">
+          {geo && (
+            <Text className="text-white text-center text-2xl font-bold">
+              {geo?.name},{" "}
+              <Text className="text-lg font-semibold text-gray-300">
+                {geo?.country}
+              </Text>
+            </Text>
+          )}
+
+          {temp && (
+            <View className="flex-row justify-center">
+              <Image
+                source={weatherImages[temp.condition.text]}
+                className="w-52 h-52"
+              ></Image>
+            </View>
+          )}
+
+          {temp && (
+            <View className="space-y-2">
+              <Text className="text-center text-white font-bold text-6xl ml-5">
+                {temp.temp_c}&#176;C
+              </Text>
+              <Text className="text-center text-white text-xl tracking-wildest">
+                {temp.condition.text}
+              </Text>
+            </View>
+          )}
+          {temp && (
+            <View className="flex-row justify-between mx-4">
+              <View className="flex-row space-x-2 items-center">
+                <Image
+                  source={require("../../assets/icons/wind.png")}
+                  className="w-6 h-6"
+                />
+                <Text className="text-white font-semibold text-lg ">
+                  {"  "}
+                  {temp.wind_kph}
+                </Text>
+              </View>
+              <View className="flex-row space-x-2 items-center">
+                <Image
+                  source={require("../../assets/icons/drop.png")}
+                  className="w-6 h-6"
+                />
+                <Text className="text-white font-semibold text-lg ">
+                  {"  "}
+                  {temp.precip_mm}
+                </Text>
+              </View>
+              <View className="flex-row space-x-2 items-center">
+                <Image
+                  source={require("../../assets/icons/sun.png")}
+                  className="w-6 h-6"
+                />
+                {geo && (
+                  <Text className="text-white font-semibold text-lg ">
+                    {"  "}
+                    {temp.feelslike_c}
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
         </View>
-      </View>
-    </View>
-  );
-}
 
-function Footer() {
-  const { bottom } = useSafeAreaInsets();
-  return (
-    <View
-      className="flex shrink-0 bg-gray-100 native:hidden"
-      style={{ paddingBottom: bottom }}
-    >
-      <View className="py-6 flex-1 items-start px-4 md:px-6 ">
-        <Text className={"text-center text-gray-700"}>
-          © {new Date().getFullYear()} Me
-        </Text>
-      </View>
+        <View className="mb-2 space-y-3">
+          <View className="flex-row items-center mx-5 space-x-2">
+            <CalendarDaysIcon size={22} color={"white"} />
+            <Text className="text-white text-lg">{"  "}Daily Forecast</Text>
+          </View>
+          <ScrollView
+            horizontal={true}
+            className="flex-row mx-4"
+            contentContainerStyle={{ paddingHorizontal: 15 }}
+            showsHorizontalScrollIndicator={false}
+          >
+            {fore.map((fore, i) => (
+              <View
+                key={i}
+                className="flex items-center justify-center rounded-3xl w-24 py-3 space-y-1 mr-4"
+                style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+              >
+                <Image
+                  source={weatherImages[fore.day.condition.text]}
+                  className="w-11 h-11"
+                />
+                <Text className="text-white">Monday</Text>
+                <Text className="text-white xl font-semibold">
+                  {fore.day.avgtemp_c} &#176;
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
