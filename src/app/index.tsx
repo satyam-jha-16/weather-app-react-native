@@ -2,8 +2,9 @@ import { fetchLocations, fetchWeatherData } from "@/api";
 import { weatherImages } from "@/constants/constant";
 import { StatusBar } from "expo-status-bar";
 import { debounce } from "lodash";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import {
+  ActivityIndicator,
   Image,
   SafeAreaView,
   ScrollView,
@@ -17,6 +18,7 @@ import {
   MagnifyingGlassIcon,
   MapPinIcon,
 } from "react-native-heroicons/outline";
+
 interface WeatherCondition {
   code: number;
   icon: string;
@@ -54,6 +56,7 @@ interface WeatherCurrent {
   windchill_c: number;
   windchill_f: number;
 }
+
 interface TGeo {
   country: string;
   lat: number;
@@ -64,41 +67,45 @@ interface TGeo {
   region: string;
   tz_id: string;
 }
-interface TForecast {}
+
 export default function Page() {
   const [showSearch, setShowSearch] = React.useState(false);
   const [locations, setLocations] = React.useState([]);
   const [temp, setTemp] = React.useState<WeatherCurrent | null>();
   const [fore, setFore] = React.useState([]);
   const [geo, setGeo] = React.useState<TGeo | null>();
-  const handleLocation = (loc) => {
-    // console.log(loc);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  useEffect(() => {
+    handleLocation({ name: "New Delhi" });
+  }, []);
+
+  const handleLocation = (loc = { name: "New Delhi" }) => {
+    setIsLoading(true);
     setLocations([]);
     setShowSearch(false);
     fetchWeatherData({
       cityName: loc.name,
       days: 7,
-    }).then((data) => {
-      const { current, location, forecast } = data;
-      // setForecast(forecast);
+    })
+      .then((data) => {
+        const { current, location, forecast } = data;
+        // console.log("forecast : : ", forecast.forecastday);
+        setFore(forecast.forecastday);
+        setTemp(current);
+        setGeo(location);
+      })
+      .catch((error) => {
+        console.error("Error fetching weather data:", error);
 
-      console.log("forecast : : ", forecast.forecastday);
-      console.log("location :  : : : : : : : : :  :: : : : : :  :: ");
-
-      // console.log("data is incoming  : : ", data);
-      setFore(forecast.forecastday);
-
-      // console.log(current);
-      setTemp(current);
-      // console.log("location is incoming  : : ");
-      setGeo(location);
-      // console.log(location);
-    });
+        // You might want to set some error state here
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   };
 
   const handleSearch = (value) => {
-    // console.log(value);
-    // fetch locations endpoint
     if (value.length > 2) {
       fetchLocations({ cityName: value }).then((data) => {
         setLocations(data);
@@ -171,72 +178,79 @@ export default function Page() {
         </View>
 
         {/* FORECAST WEATHER  */}
-        <View className="mx-4 flex justify-around flex-1 mb-2">
-          {geo && (
-            <Text className="text-white text-center text-2xl font-bold">
-              {geo?.name},{" "}
-              <Text className="text-lg font-semibold text-gray-300">
-                {geo?.country}
+        {isLoading ? (
+          <View className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="white" />
+            <Text className="text-white mt-4">Loading weather data...</Text>
+          </View>
+        ) : (
+          <View className="mx-4 flex justify-around flex-1 mb-2">
+            {geo && (
+              <Text className="text-white text-center text-2xl font-bold">
+                {geo?.name},{" "}
+                <Text className="text-lg font-semibold text-gray-300">
+                  {geo?.country}
+                </Text>
               </Text>
-            </Text>
-          )}
+            )}
 
-          {temp && (
-            <View className="flex-row justify-center">
-              <Image
-                source={weatherImages[temp.condition.text]}
-                className="w-52 h-52"
-              ></Image>
-            </View>
-          )}
-
-          {temp && (
-            <View className="space-y-2">
-              <Text className="text-center text-white font-bold text-6xl ml-5">
-                {temp.temp_c}&#176;C
-              </Text>
-              <Text className="text-center text-white text-xl tracking-wildest">
-                {temp.condition.text}
-              </Text>
-            </View>
-          )}
-          {temp && (
-            <View className="flex-row justify-between mx-4">
-              <View className="flex-row space-x-2 items-center">
+            {temp && (
+              <View className="flex-row justify-center">
                 <Image
-                  source={require("../../assets/icons/wind.png")}
-                  className="w-6 h-6"
+                  source={weatherImages[temp.condition.text]}
+                  className="w-52 h-52"
                 />
-                <Text className="text-white font-semibold text-lg ">
-                  {"  "}
-                  {temp.wind_kph}
+              </View>
+            )}
+
+            {temp && (
+              <View className="space-y-2">
+                <Text className="text-center text-white font-bold text-6xl ml-5">
+                  {temp.temp_c}&#176;C
+                </Text>
+                <Text className="text-center text-white text-xl tracking-widest">
+                  {temp.condition.text}
                 </Text>
               </View>
-              <View className="flex-row space-x-2 items-center">
-                <Image
-                  source={require("../../assets/icons/drop.png")}
-                  className="w-6 h-6"
-                />
-                <Text className="text-white font-semibold text-lg ">
-                  {"  "}
-                  {temp.precip_mm}
-                </Text>
-              </View>
-              <View className="flex-row space-x-2 items-center">
-                <Image
-                  source={require("../../assets/icons/sun.png")}
-                  className="w-6 h-6"
-                />
-                {geo && (
+            )}
+            {temp && (
+              <View className="flex-row justify-between mx-4">
+                <View className="flex-row space-x-2 items-center">
+                  <Image
+                    source={require("../../assets/icons/wind.png")}
+                    className="w-6 h-6"
+                  />
                   <Text className="text-white font-semibold text-lg ">
                     {"  "}
-                    {temp.feelslike_c}
+                    {temp.wind_kph} km/h
                   </Text>
-                )}
+                </View>
+                <View className="flex-row space-x-2 items-center">
+                  <Image
+                    source={require("../../assets/icons/drop.png")}
+                    className="w-6 h-6"
+                  />
+                  <Text className="text-white font-semibold text-lg ">
+                    {"  "}
+                    {temp.precip_mm} mm
+                  </Text>
+                </View>
+                <View className="flex-row space-x-2 items-center">
+                  <Image
+                    source={require("../../assets/icons/sun.png")}
+                    className="w-6 h-6"
+                  />
+                  {geo && (
+                    <Text className="text-white font-semibold text-lg ">
+                      {"  "}
+                      {temp.feelslike_c}&#176;C
+                    </Text>
+                  )}
+                </View>
               </View>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
+        )}
 
         <View className="mb-2 space-y-3">
           <View className="flex-row items-center mx-5 space-x-2">
@@ -256,12 +270,22 @@ export default function Page() {
                 style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
               >
                 <Image
-                  source={weatherImages[fore.day.condition.text]}
+                  source={
+                    weatherImages[
+                      fore.day.condition.text
+                        ? fore.day.condition.text
+                        : "Cloudy"
+                    ]
+                  }
                   className="w-11 h-11"
                 />
-                <Text className="text-white">Monday</Text>
+                <Text className="text-white">
+                  {new Date(fore.date).toLocaleDateString("en-US", {
+                    weekday: "short",
+                  })}
+                </Text>
                 <Text className="text-white xl font-semibold">
-                  {fore.day.avgtemp_c} &#176;
+                  {Math.round(fore.day.avgtemp_c)}&#176;
                 </Text>
               </View>
             ))}
